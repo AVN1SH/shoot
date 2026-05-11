@@ -37,21 +37,15 @@ export async function loadGLB(path) {
 //    person1.glb          ← enemy character (with skeleton + animations)
 //
 //  assets/meterials/      (note: typo in folder name is intentional — that's the real folder)
-//    ak47.glb             ← player rifle viewmodel
-//    ak47variant.glb      ← enemy rifle
-//    nade_low.glb         ← grenade
-//    nadevariant_low.glb  ← alternate grenade
-//    ammobox_low.glb      ← ammo pickup
-//    awm.glb              ← sniper (future use)
-//    mac10.glb            ← SMG (future use)
-//    pew.glb              ← pistol (future use)
-//    shotgun.glb          ← shotgun (future use)
-//    flashbang_low.glb    ← flashbang
-//    smoke_low.glb        ← smoke grenade
-//    rocketlaucher.glb    ← rocket launcher
-//    board.glb            ← board prop
+//    ak47.glb, ak47variant.glb, nade_low.glb, nadevariant_low.glb,
+//    ammobox_low.glb, awm.glb, mac10.glb, pew.glb, shotgun.glb,
+//    flashbang_low.glb, smoke_low.glb, rocketlaucher.glb, board.glb
 //
-//  No environment GLBs exist → street/cover built procedurally.
+//  assets/architectures/  ← Environment props (walls, cover, decorations)
+//    barrel, box_1, bush_1, car, electric_pole_1,
+//    ground_*, medpack_1, metal_board_*,
+//    pallet_cluster_1, road_barrier, sharpened_stick, small_bottle_1,
+//    tire, wall_*, wheel, wooden_spike_barricade, wooden_wall
 //
 const ASSET_MAP = {
   // ── Characters ──────────────────────────────────────────
@@ -73,7 +67,7 @@ const ASSET_MAP = {
   'assets/guns/grenade.glb':             'assets/meterials/nade_low.glb',
   'assets/guns/grenade_variant.glb':     'assets/meterials/nadevariant_low.glb',
   'assets/guns/flashbang.glb':           'assets/meterials/flashbang_low.glb',
-  'assets/guns/smoke.glb':              'assets/meterials/smoke_low.glb',
+  'assets/guns/smoke.glb':               'assets/meterials/smoke_low.glb',
   'assets/guns/incendiary.glb':          'assets/meterials/incendiary_low.glb',
 
   // ── Pickups / Props ─────────────────────────────────────
@@ -86,7 +80,50 @@ const ASSET_MAP = {
   'assets/fx/bullet_shotgun.glb':       'assets/meterials/bulletshotgun.glb',
   'assets/fx/bullet_sniper.glb':        'assets/meterials/bulletsniper.glb',
 
-  // ── No environment GLBs — street/cover built procedurally ──
+  // ── Environment: Cover props ────────────────────────────
+  'env/car':                    'assets/architectures/car.glb',
+  'env/pallet_cluster':         'assets/architectures/pallet_cluster_1.glb',
+  'env/road_barrier':           'assets/architectures/road_barrier.glb',
+  'env/tire':                   'assets/architectures/tire.glb',
+  'env/wheel':                  'assets/architectures/wheel.glb',
+  'env/wooden_spike_barricade': 'assets/architectures/wooden_spike_barricade.glb',
+  'env/barrel':                 'assets/architectures/barrel.glb',
+  'env/box':                    'assets/architectures/box_1.glb',
+
+  // ── Environment: Walls & buildings ──────────────────────
+  'env/wall':                   'assets/architectures/wall_1.glb',
+  'env/wall_brick':             'assets/architectures/wall_1_brick.glb',
+  'env/wall_door':              'assets/architectures/wall_1_door_boarded.glb',
+  'env/wall_hole':              'assets/architectures/wall_1_hole.glb',
+  'env/wall_window_1':          'assets/architectures/wall_1_window_1.glb',
+  'env/wall_window_2':          'assets/architectures/wall_1_window_2.glb',
+  'env/wall_column':            'assets/architectures/wall_column.glb',
+  'env/wall_concrete_metal':    'assets/architectures/wall_concrete_metal.glb',
+  'env/wall_metal_1':           'assets/architectures/wall_metal_1.glb',
+  'env/wall_metal_2':           'assets/architectures/wall_metal_2.glb',
+  'env/wall_spiked':            'assets/architectures/wall_spiked.glb',
+  'env/wooden_wall':            'assets/architectures/wooden_wall.glb',
+
+  // ── Environment: Ground tiles ───────────────────────────
+  'env/ground_1':               'assets/architectures/ground_1.glb',
+  'env/ground_2':               'assets/architectures/ground_2.glb',
+  'env/ground_planks':          'assets/architectures/ground_planks.glb',
+  'env/ground_road_1_L':        'assets/architectures/ground_road_1_L.glb',
+  'env/ground_road_1_R':        'assets/architectures/ground_road_1_R.glb',
+  'env/ground_road_2_L':        'assets/architectures/ground_road_2_L.glb',
+  'env/ground_road_2_R':        'assets/architectures/ground_road_2_R.glb',
+
+  // ── Environment: Metal boards ───────────────────────────
+  'env/metal_board_1':          'assets/architectures/metal_board_1.glb',
+  'env/metal_board_2':          'assets/architectures/metal_board_2.glb',
+  'env/metal_board_3':          'assets/architectures/metal_board_3.glb',
+
+  // ── Environment: Decorations ────────────────────────────
+  'env/bush':                   'assets/architectures/bush_1.glb',
+  'env/electric_pole':          'assets/architectures/electric_pole_1.glb',
+  'env/small_bottle':           'assets/architectures/small_bottle_1.glb',
+  'env/sharpened_stick':        'assets/architectures/sharpened_stick.glb',
+  'env/medpack':                'assets/architectures/medpack_1.glb',
 };
 
 // Resolve a logical path to its physical path
@@ -102,13 +139,45 @@ export async function loadAsset(logicalPath) {
 
 // Preload the core assets needed before the game starts
 export async function preloadAll(onProgress) {
-  // Only preload assets we KNOW exist on disk
   const toLoad = [
-    'assets/enemies/enemy_character.glb',  // → assets/sprites/person1.glb
-    'assets/guns/player_rifle.glb',        // → assets/meterials/ak47.glb
-    'assets/guns/enemy_rifle.glb',         // → assets/meterials/ak47variant.glb
-    'assets/guns/grenade.glb',             // → assets/meterials/nade_low.glb
-    'assets/guns/ammo_pickup.glb',         // → assets/meterials/ammobox_low.glb
+    // Characters & guns
+    'assets/enemies/enemy_character.glb',
+    'assets/guns/player_rifle.glb',
+    'assets/guns/enemy_rifle.glb',
+    'assets/guns/grenade.glb',
+    'assets/guns/ammo_pickup.glb',
+
+    // Environment cover
+    'env/car',
+    'env/pallet_cluster',
+    'env/road_barrier',
+    'env/tire',
+    'env/wheel',
+    'env/wooden_spike_barricade',
+    'env/barrel',
+    'env/box',
+
+    // Walls (buildings / garages)
+    'env/wall',
+    'env/wall_brick',
+    'env/wall_door',
+    'env/wall_hole',
+    'env/wall_window_1',
+    'env/wall_window_2',
+    'env/wall_column',
+    'env/wall_concrete_metal',
+    'env/wall_metal_1',
+    'env/wall_metal_2',
+    'env/wooden_wall',
+
+    // Decorations
+    'env/bush',
+    'env/electric_pole',
+    'env/small_bottle',
+    'env/sharpened_stick',
+    'env/metal_board_1',
+    'env/metal_board_2',
+    'env/metal_board_3',
   ];
 
   for (let i = 0; i < toLoad.length; i++) {
@@ -121,4 +190,20 @@ export async function preloadAll(onProgress) {
 export function getFromCache(logicalPath) {
   const physical = resolvePath(logicalPath);
   return cache.get(physical) ?? null;
+}
+
+/* ── Helpers for cloned GLB instances ─────────────────────── */
+// Clone a cached GLB scene so we can place many instances in the world.
+// Returns null if not in cache. Ensures shadows are enabled on meshes.
+export function cloneGLB(logicalPath) {
+  const gltf = getFromCache(logicalPath);
+  if (!gltf || !gltf.scene) return null;
+  const obj = gltf.scene.clone(true);
+  obj.traverse((m) => {
+    if (m.isMesh) {
+      m.castShadow = true;
+      m.receiveShadow = true;
+    }
+  });
+  return obj;
 }
