@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#0d0d1a">
+  <meta name="description" content="FPS Street Shooter — A cover-based first-person shooter built with Three.js and Rapier physics.">
+  <title>FPS Street Shooter</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&family=Orbitron:wght@700;900&display=swap">
+  <link rel="stylesheet" href="style.css">
+
+  <!-- Import map for Three.js r158 ES modules -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.158.0/examples/jsm/",
+      "@dimforge/rapier3d-compat": "https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.11.2/rapier.es.js",
+      "gsap": "https://cdn.jsdelivr.net/npm/gsap@3.12.5/+esm"
+    }
+  }
+  </script>
+</head>
+<body>
+  <!-- HUD Overlay -->
+  <div id="hud">
+
+    <!-- HP Bar -->
+    <div id="hp-bar-wrap">
+      <div id="hp-label">HP</div>
+      <div id="hp-bar-track">
+        <div id="hp-bar"></div>
+      </div>
+    </div>
+
+    <!-- Ammo Display -->
+    <div id="ammo-display">
+      <span id="ammo-current">30</span><span id="ammo-sep"> / </span><span id="ammo-max">30</span>
+    </div>
+
+    <!-- Score Display -->
+    <div id="score-display">0</div>
+
+    <!-- Wave Display -->
+    <div id="wave-display">WAVE 1</div>
+
+    <!-- Combo Multiplier -->
+    <div id="combo-display"></div>
+
+    <!-- Crosshair -->
+    <div id="crosshair">
+      <div class="ch-top"></div>
+      <div class="ch-bottom"></div>
+      <div class="ch-left"></div>
+      <div class="ch-right"></div>
+      <div class="ch-dot"></div>
+    </div>
+
+    <!-- Hit Marker -->
+    <div id="hit-marker">
+      <div class="hm-tl"></div>
+      <div class="hm-tr"></div>
+      <div class="hm-bl"></div>
+      <div class="hm-br"></div>
+    </div>
+
+    <!-- Hit Vignette -->
+    <div id="hit-vignette"></div>
+
+    <!-- Loading Screen -->
+    <div id="loading-screen">
+      <div id="loading-logo">
+        <div id="loading-title">STREET SHOOTER</div>
+        <div id="loading-subtitle">FPS TACTICAL</div>
+      </div>
+      <div id="loading-bar-wrap">
+        <div id="loading-bar">
+          <div id="loading-progress"></div>
+        </div>
+        <div id="loading-text">Initializing...</div>
+      </div>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="game-over-screen" style="display:none">
+      <div id="game-over-content">
+        <div id="game-over-title">MISSION FAILED</div>
+        <div id="final-score">Score: 0</div>
+        <div id="final-wave">Wave Reached: 1</div>
+        <button id="restart-btn">PLAY AGAIN</button>
+      </div>
+    </div>
+
+    <!-- Wave Clear Banner -->
+    <div id="wave-clear-msg" style="display:none">WAVE CLEAR!</div>
+
+    <!-- Advance Button -->
+    <div id="advance-btn" style="display:none">
+      <div class="advance-inner">
+        <div class="advance-arrow">▶</div>
+        <div class="advance-label">ADVANCE</div>
+      </div>
+    </div>
+
+    <!-- Touch ADS Button -->
+    <div id="ads-btn">
+      <span>AIM</span>
+    </div>
+
+  </div>
+
+  <!-- Game Bootstrap -->
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
