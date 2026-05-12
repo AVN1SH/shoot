@@ -26,7 +26,7 @@ export function initScene() {
   const skyColor = new THREE.Color(0xc4d8ee);
   scene.background = skyColor;
   // Softer fog so distant buildings remain readable
-  // scene.fog = new THREE.FogExp2(0xc8d4e0, 0.012);
+  scene.fog = new THREE.FogExp2(0xc8d4e0, 0.012);
 
   /* ── Lighting ───────────────────────────────────────────── */
   // Key directional light (warm sun, lower in sky → long shadows)

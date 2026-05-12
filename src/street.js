@@ -27,6 +27,11 @@ export const envState = {
   frontZCursorSlot: -134,
 };
 
+// Module-level reusable objects — avoids GC pressure from per-frame allocations
+const _dummy = new THREE.Object3D();
+let _updateFrameCounter = 0; // throttle heavy update work
+let _lastMarkStart = null; // skip mark updates if player hasn't moved
+
 const ROAD_WIDTH = 12;
 const ROAD_LENGTH = 260;
 const SLOT_SPACING = 18;
@@ -669,8 +674,8 @@ function scatterDecorations(scene, world, rng) {
     for (let i = 0; i < c.weight; i++) pool.push(c);
   });
 
-  // Scatter decor on both sides of the road (outside sidewalks)
-  for (let z = -ROAD_LENGTH / 2 + 6; z < ROAD_LENGTH / 2 - 6; z += 5) {
+  // Scatter decor on both sides of the road — step 20 units to reduce draw calls
+  for (let z = -ROAD_LENGTH / 2 + 6; z < ROAD_LENGTH / 2 - 6; z += 20) {
     for (const side of [-1, 1]) {
       if (rng.next() < 0.45) {
         const choice = pool[Math.floor(rng.next() * pool.length)];
@@ -686,7 +691,8 @@ function scatterDecorations(scene, world, rng) {
           choice.width,
           {
             rotY,
-            noCastShadow: choice.width < 0.7, // small props skip shadow
+            // noCastShadow: choice.width < 0.7, // small props skip shadow
+            noCastShadow: true,
             lod: {
               midDist: DECOR_LOD_MID,
               hideDist: DECOR_LOD_HIDE,
@@ -711,18 +717,18 @@ function scatterDecorations(scene, world, rng) {
     }
   }
 
-  // Electric poles / street lamps every ~12m on both sides.
-  // Sized as tall street lights (~4.5–5m) via fitToHeight.
-  for (let z = -ROAD_LENGTH / 2 + 8; z < ROAD_LENGTH / 2 - 8; z += 12) {
-    for (const side of [-1, 1]) {
-      const x = side * (ROAD_WIDTH / 2 + 2.4);
-      const targetHeight = 4.6 + (rng.next() - 0.5) * 0.4;
-      const obj = placeGLB(scene, "env/electric_pole", x, z, null, {
-        targetHeight,
-        lod: { midDist: 60, hideDist: 150, proxyColor: 0x3c3a36 },
-      });
-      if (obj) envState.decors.push({ group: obj, collider: null });
-    }
+  // Electric poles — one side per interval to halve draw calls
+  let poleSide = 1;
+  for (let z = -ROAD_LENGTH / 2 + 8; z < ROAD_LENGTH / 2 - 8; z += 24) {
+    const x = poleSide * (ROAD_WIDTH / 2 + 2.4);
+    const targetHeight = 4.6 + (rng.next() - 0.5) * 0.4;
+    const obj = placeGLB(scene, "env/electric_pole", x, z, null, {
+      targetHeight,
+      noCastShadow: true,
+      lod: { midDist: 60, hideDist: 150, proxyColor: 0x3c3a36 },
+    });
+    if (obj) envState.decors.push({ group: obj, collider: null });
+    poleSide *= -1; // alternate sides
   }
 
   // Occasional medpack on the sidewalk — visual only (pickup wiring deferred)
@@ -814,18 +820,17 @@ export async function buildStreet(scene, world, rng = new SeededRNG(42)) {
   scene.add(road);
   envState.roads.push(road);
 
-  /* Center-line markings (InstancedMesh — single draw call) */
+  /* Center-line markings (InstancedMesh — single draw call, BasicMaterial = no lighting cost) */
   const markGeo = new THREE.PlaneGeometry(0.12, 2.0);
   const markMat = new THREE.MeshBasicMaterial({ color: 0xeeee00 });
   const markCount = 18;
   const markMesh = new THREE.InstancedMesh(markGeo, markMat, markCount);
   markMesh.rotation.x = -Math.PI / 2;
   markMesh.position.y = 0.002;
-  const dummy = new THREE.Object3D();
   for (let i = 0; i < markCount; i++) {
-    dummy.position.set(0, 0, -i * 12 + 6);
-    dummy.updateMatrix();
-    markMesh.setMatrixAt(i, dummy.matrix);
+    _dummy.position.set(0, 0, -i * 12 + 6);
+    _dummy.updateMatrix();
+    markMesh.setMatrixAt(i, _dummy.matrix);
   }
   markMesh.instanceMatrix.needsUpdate = true;
   scene.add(markMesh);
@@ -930,30 +935,40 @@ export async function buildStreet(scene, world, rng = new SeededRNG(42)) {
 
 /* ── Infinite Update ───────────────────────────────── */
 export function updateStreet(playerZ, scene, world, rng) {
-  // Update road planes continuously to prevent horizon gaps
+  // ── Throttle: only do heavy work every 10 frames ──────────
+  _updateFrameCounter++;
+  const isHeavyFrame = _updateFrameCounter % 10 === 0;
+
+  // Road planes follow player continuously (cheap — just set one Z value)
   const roadCenterZ = playerZ - 100;
   envState.roads.forEach((r) => {
     r.position.z = roadCenterZ;
   });
 
-  // Update markings (InstancedMesh)
+  // Markings — only update when player has crossed a new 12-unit mark interval
   if (envState.markMesh) {
-    const dummy = new THREE.Object3D();
     const markCount = 18;
     const markStart = Math.floor(playerZ / 12) * 12 + 108;
-    for (let i = 0; i < markCount; i++) {
-      dummy.position.set(0, 0, markStart - i * 12);
-      dummy.updateMatrix();
-      envState.markMesh.setMatrixAt(i, dummy.matrix);
+    if (markStart !== _lastMarkStart) {
+      _lastMarkStart = markStart;
+      for (let i = 0; i < markCount; i++) {
+        _dummy.position.set(0, 0, markStart - i * 12);
+        _dummy.updateMatrix();
+        envState.markMesh.setMatrixAt(i, _dummy.matrix);
+      }
+      envState.markMesh.instanceMatrix.needsUpdate = true;
     }
-    envState.markMesh.instanceMatrix.needsUpdate = true;
   }
 
-  // Recycle Buildings
+  if (!isHeavyFrame) return; // skip building/tree/decor work most frames
+
+  // Recycle Buildings — max 1 per heavy frame to spread the cost
   const BEHIND_THRESHOLD = 40;
+  let recycledBuilding = false;
   for (let b of envState.buildings) {
+    if (recycledBuilding) break; // only one per frame
     if (b.group.position.z > playerZ + BEHIND_THRESHOLD) {
-      // Only advance the cursor once per pair (e.g., when processing the left side)
+      recycledBuilding = true;
       if (b.side < 0) {
         envState.frontZCursorBuilding -= 12 + 4 + rng.next() * 4;
       }
