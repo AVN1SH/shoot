@@ -7,7 +7,7 @@ export function getWaveConfig(wave) {
     hp:                 Math.round(60 * Math.pow(1.18, wave)),  // softer early HP
 
     // ── Headshot one-shot kills waves 0-2 ─────────────────
-    headshotOneShot:    wave <= 2,
+    headshotOneShot:    wave >= 0,
 
     // ── Fire behaviour ────────────────────────────────────
     fireInterval:       Math.max(1.2, 5.0 * Math.pow(0.88, wave)),

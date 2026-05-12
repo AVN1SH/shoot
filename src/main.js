@@ -4,7 +4,7 @@ import * as THREE from "three";
 import { initScene, handleResize } from "./scene.js";
 import { initPhysics } from "./physics.js";
 import { preloadAll } from "./loader.js";
-import { buildStreet, snapPlayerToCover } from "./street.js";
+import { buildStreet, snapPlayerToCover, updateStreet } from "./street.js";
 import {
   createPlayerRig,
   playerState,
@@ -46,6 +46,7 @@ const gameState = {
 /* Systems refs */
 let renderer, scene, world, playerRig, hud, spawner;
 let frameTimes = [];
+let streetRNG;
 
 /* ═══════════════════════════════════════════════════════════
    INIT
@@ -96,8 +97,8 @@ async function init() {
   /* Street */
   showLoadingProgress(hud, 0.75);
   hud.loadingText.textContent = "Building world…";
-  const rng = new SeededRNG(42);
-  const { slots } = await buildStreet(scene, world, rng);
+  streetRNG = new SeededRNG(42);
+  const { slots } = await buildStreet(scene, world, streetRNG);
   console.log("[Init] Street ready, slots:", slots.length);
   gameState.coverSlots = slots;
 
@@ -166,6 +167,7 @@ function gameLoop(now) {
   /* Updates */
   updatePlayerState(playerRig, FIXED_DT);
   if (spawner) spawner.update(FIXED_DT);
+  updateStreet(playerRig.body.position.z, scene, world, streetRNG);
 
   /* ADS timer (exposure punishment) */
   if (playerState.isADS) {
@@ -295,19 +297,32 @@ function restartGame() {
 ══════════════════════════════════════════════════════════════ */
 function adaptQuality() {
   if (!frameTimes.length) return;
-  // renderer.shadowMap.mapSize does not exist in Three.js —
-  // shadow map size is per-light (light.shadow.mapSize), not global.
-  // Frame timing is still tracked for future diagnostics.
-  // const avg = frameTimes.reduce((a, b) => a + b, 0) / frameTimes.length;
+  const avg = frameTimes.reduce((a, b) => a + b, 0) / frameTimes.length;
 
-  // const avg = frameTimes.reduce((a, b) => a + b, 0) / frameTimes.length;
-  // if (avg > 22 && renderer.shadowMap.mapSize.x > 512) {
-  //   renderer.shadowMap.mapSize.set(512, 512);
-  //   renderer.shadowMap.needsUpdate = true;
-  // } else if (avg < 14 && renderer.shadowMap.mapSize.x < 1024) {
-  //   renderer.shadowMap.mapSize.set(1024, 1024);
-  //   renderer.shadowMap.needsUpdate = true;
-  // }
+  // Adapt renderer pixel ratio based on frame time. High ms → lower DPR.
+  // Three.js accepts fractional pixel ratios; default is window.devicePixelRatio.
+  const currentDPR = renderer.getPixelRatio();
+  const maxDPR = Math.min(window.devicePixelRatio || 1, 2);
+  const minDPR = 0.75;
+
+  if (avg > 24 && currentDPR > minDPR) {
+    // Struggling: drop DPR by ~25%
+    const next = Math.max(minDPR, currentDPR * 0.85);
+    if (Math.abs(next - currentDPR) > 0.02) renderer.setPixelRatio(next);
+  } else if (avg < 14 && currentDPR < maxDPR) {
+    // Headroom: raise DPR slightly
+    const next = Math.min(maxDPR, currentDPR * 1.08);
+    if (Math.abs(next - currentDPR) > 0.02) renderer.setPixelRatio(next);
+  }
+
+  // Toggle shadow map entirely if we're REALLY struggling.
+  if (avg > 40 && renderer.shadowMap.enabled) {
+    renderer.shadowMap.enabled = false;
+    renderer.shadowMap.needsUpdate = true;
+  } else if (avg < 16 && !renderer.shadowMap.enabled) {
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.needsUpdate = true;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════

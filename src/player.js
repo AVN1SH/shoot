@@ -6,7 +6,7 @@ import gsap from "gsap";
 
 /* ── Shared player state (singleton) ────────────────────── */
 export const playerState = {
-  hp: 100,
+  hp: 99999,
   maxHp: 100,
   ammo: 30,
   maxAmmo: 30,
