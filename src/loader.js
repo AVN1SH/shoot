@@ -11,7 +11,7 @@ function getLoader() {
   if (gltfLoader) return gltfLoader;
 
   const draco = new DRACOLoader();
-  draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+  draco.setDecoderPath('./libs/draco/');
 
   gltfLoader = new GLTFLoader();
   gltfLoader.setDRACOLoader(draco);

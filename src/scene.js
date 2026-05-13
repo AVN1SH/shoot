@@ -11,7 +11,7 @@ export function initScene() {
     antialias: window.devicePixelRatio < 2,
     powerPreference: "high-performance",
   });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -33,7 +33,7 @@ export function initScene() {
   const sun = new THREE.DirectionalLight(0xffd9a8, 2.55);
   sun.position.set(18, 26, -10);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.mapSize.set(1024, 1024);
   sun.shadow.camera.near = 0.5;
   sun.shadow.camera.far = 180;
   sun.shadow.camera.left = -50;

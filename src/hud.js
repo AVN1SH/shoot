@@ -1,13 +1,16 @@
-// hud.js — DOM-based HUD: HP, Ammo, Score, Wave, Combo, Popups
+// hud.js — DOM-based HUD: HP, Ammo Ring, Score, Wave, Combo, Popups
 
 /* ── Init ─────────────────────────────────────────────────── */
 export function initHUD() {
   const hud = {
     hpBar:           document.getElementById('hp-bar'),
+    hpValue:         document.getElementById('hp-value'),
     ammoCurrent:     document.getElementById('ammo-current'),
     ammoMax:         document.getElementById('ammo-max'),
-    scoreDisplay:    document.getElementById('score-display'),
-    waveDisplay:     document.getElementById('wave-display'),
+    ammoRingFill:    document.getElementById('ammo-ring-fill'),
+    // score & wave: write to inner span
+    scoreDisplay:    document.getElementById('score-value'),
+    waveDisplay:     document.getElementById('wave-text'),
     comboDisplay:    document.getElementById('combo-display'),
     crosshair:       document.getElementById('crosshair'),
     hitMarker:       document.getElementById('hit-marker'),
@@ -16,16 +19,17 @@ export function initHUD() {
     loadingProgress: document.getElementById('loading-progress'),
     loadingText:     document.getElementById('loading-text'),
     gameOverScreen:  document.getElementById('game-over-screen'),
-    finalScore:      document.getElementById('final-score'),
-    finalWave:       document.getElementById('final-wave'),
+    finalScore:      document.getElementById('go-score-val'),
+    finalWave:       document.getElementById('go-wave-val'),
     restartBtn:      document.getElementById('restart-btn'),
     advanceBtn:      document.getElementById('advance-btn'),
     adsBtn:          document.getElementById('ads-btn'),
     waveClearMsg:    document.getElementById('wave-clear-msg'),
   };
 
-  // Bind convenience methods directly on the hud object so callers can do
-  // hud.showHitVignette() without importing the function separately.
+  // Ammo ring circumference: 2 * π * 40 ≈ 251.2
+  hud._ammoRingCirc = 251.2;
+
   hud.showHitVignette = () => showHitVignette(hud);
   hud.showHitMarker   = () => showHitMarker(hud);
 
@@ -34,21 +38,34 @@ export function initHUD() {
 
 /* ── Per-frame HUD update ────────────────────────────────── */
 export function updateHUD(hud, playerState, waveIndex) {
+  // HP bar
   const pct = Math.max(0, (playerState.hp / playerState.maxHp) * 100);
   hud.hpBar.style.width = pct + '%';
 
-  // HP colour: green → yellow → red
-  const r = Math.round(255 * (1 - pct / 100));
-  const g = Math.round(255 * (pct / 100));
-  hud.hpBar.style.background = `linear-gradient(90deg, rgb(${r},${g},20), rgb(${r},${g*0.8|0},0))`;
+  // HP colour: tactical green, red when low
+  hud.hpBar.style.background = pct > 25 ? 'var(--accent)' : 'var(--accent-alert)';
+  if (hud.hpValue) hud.hpValue.textContent = Math.ceil(playerState.hp);
 
+  // Ammo text
   hud.ammoCurrent.textContent = playerState.ammo;
-  hud.ammoMax.textContent     = playerState.maxAmmo;
+  hud.ammoMax.textContent     = '/' + playerState.maxAmmo;
+
+  // Ammo ring
+  if (hud.ammoRingFill) {
+    const ratio   = Math.max(0, playerState.ammo / playerState.maxAmmo);
+    const offset  = hud._ammoRingCirc * (1 - ratio);
+    hud.ammoRingFill.style.strokeDashoffset = offset;
+    // colour: full=white, low=red
+    hud.ammoRingFill.style.stroke = ratio > 0.25 ? 'var(--text-main)' : 'var(--accent-alert)';
+  }
+
+  // Score & wave
   hud.scoreDisplay.textContent = playerState.score.toLocaleString();
   hud.waveDisplay.textContent  = `WAVE ${waveIndex + 1}`;
 
+  // Combo
   if (playerState.combo > 1) {
-    hud.comboDisplay.textContent   = `×${playerState.combo}`;
+    hud.comboDisplay.textContent   = `×${playerState.combo} COMBO`;
     hud.comboDisplay.style.display = 'block';
   } else {
     hud.comboDisplay.style.display = 'none';
@@ -58,9 +75,7 @@ export function updateHUD(hud, playerState, waveIndex) {
 /* ── Loading ─────────────────────────────────────────────── */
 export function showLoadingProgress(hud, progress) {
   hud.loadingProgress.style.width = (progress * 100).toFixed(1) + '%';
-  if (progress >= 1) {
-    hud.loadingText.textContent = 'Ready!';
-  }
+  if (progress >= 1) hud.loadingText.textContent = 'Get Ready!';
 }
 
 export function hideLoadingScreen(hud) {
@@ -72,8 +87,8 @@ export function hideLoadingScreen(hud) {
 /* ── Game Over ───────────────────────────────────────────── */
 export function showGameOver(hud, score, wave, onRestart) {
   hud.gameOverScreen.style.display = 'flex';
-  hud.finalScore.textContent = `Score: ${score.toLocaleString()}`;
-  hud.finalWave.textContent  = `Wave Reached: ${wave + 1}`;
+  hud.finalScore.textContent = score.toLocaleString();
+  hud.finalWave.textContent  = wave + 1;
   hud.restartBtn.onclick     = onRestart;
 }
 
@@ -96,9 +111,9 @@ export function showWaveClearMessage(hud) {
   const el = hud.waveClearMsg;
   el.style.display   = 'block';
   el.style.animation = 'none';
-  void el.offsetHeight; // reflow to restart animation
-  el.style.animation = 'wave-clear-pop 2s ease-out forwards';
-  setTimeout(() => { el.style.display = 'none'; }, 2100);
+  void el.offsetHeight;
+  el.style.animation = 'wc-fade 2.5s ease-out forwards';
+  setTimeout(() => { el.style.display = 'none'; }, 2300);
 }
 
 /* ── Hit feedback ────────────────────────────────────────── */

@@ -5,52 +5,101 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="theme-color" content="#0d0d1a">
-  <meta name="description" content="FPS Street Shooter — A cover-based first-person shooter built with Three.js and Rapier physics.">
-  <title>FPS Street Shooter</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&family=Orbitron:wght@700;900&display=swap">
+  <meta name="theme-color" content="#0f1923">
+  <meta name="description" content="FPS Street Shooter — A cover-based first-person shooter built with Three.js.">
+  <title>Street Shooter</title>
+
+  <!-- Modern tactical fonts (Using system fonts for YouTube Playables standalone requirement) -->
+  <style>
+    :root {
+      --font-display: 'Impact', 'Arial Black', sans-serif;
+      --font-ui: 'Helvetica Neue', Arial, sans-serif;
+    }
+  </style>
+
   <link rel="stylesheet" href="style.css">
 
-  <!-- Import map for Three.js r158 ES modules -->
+
+  <!-- YouTube Playables SDK (must be after importmap) -->
+  <script src="https://www.youtube.com/game_api/v1"></script>
   <script type="importmap">
   {
     "imports": {
-      "three": "https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js",
-      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.158.0/examples/jsm/",
-      "@dimforge/rapier3d-compat": "https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.11.2/rapier.es.js",
-      "gsap": "https://cdn.jsdelivr.net/npm/gsap@3.12.5/+esm"
+      "three": "./libs/three.module.js",
+      "three/addons/": "./libs/three/examples/jsm/",
+      "@dimforge/rapier3d-compat": "./libs/rapier.es.js",
+      "gsap": "./libs/gsap.js"
     }
   }
   </script>
 </head>
 <body>
-  <!-- HUD Overlay -->
+
+  <!-- ══════════════════════════════════════════
+       HUD OVERLAY
+  ══════════════════════════════════════════ -->
   <div id="hud">
 
-    <!-- HP Bar -->
-    <div id="hp-bar-wrap">
-      <div id="hp-label">HP</div>
+    <!-- TOP-LEFT: HP Bar panel -->
+    <div id="hp-panel">
+      <div id="hp-row">
+        <svg id="hp-icon" viewBox="0 0 24 24" fill="none">
+          <path d="M12 21C12 21 3 14.5 3 8.5C3 5.42 5.42 3 8.5 3C10.24 3 11.81 3.85 12 5C12.19 3.85 13.76 3 15.5 3C18.58 3 21 5.42 21 8.5C21 14.5 12 21 12 21Z" fill="#ff3b5c" stroke="#fff" stroke-width="1.5"/>
+        </svg>
+        <span id="hp-label-txt">HEALTH</span>
+        <span id="hp-value">100</span>
+      </div>
       <div id="hp-bar-track">
         <div id="hp-bar"></div>
       </div>
     </div>
 
-    <!-- Ammo Display -->
-    <div id="ammo-display">
-      <span id="ammo-current">30</span><span id="ammo-sep"> / </span><span id="ammo-max">30</span>
+    <!-- TOP-CENTER: Wave Badge -->
+    <div id="wave-display">
+      <div id="wave-icon">⚔️</div>
+      <div id="wave-text">WAVE 1</div>
     </div>
 
-    <!-- Score Display -->
-    <div id="score-display">0</div>
+    <!-- TOP-RIGHT: Score -->
+    <div id="score-display">
+      <svg viewBox="0 0 24 24" width="18" height="18"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" fill="#FF8C00" stroke="#fff" stroke-width="1.2"/></svg>
+      <span id="score-value">0</span>
+    </div>
 
-    <!-- Wave Display -->
-    <div id="wave-display">WAVE 1</div>
+    <!-- BOTTOM-RIGHT: Ammo Ring -->
+    <div id="ammo-panel">
+      <svg id="ammo-ring-svg" viewBox="0 0 100 100">
+        <circle id="ammo-ring-bg"   cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="8"/>
+        <circle id="ammo-ring-fill" cx="50" cy="50" r="40" fill="none" stroke="#FF8C00" stroke-width="8"
+                stroke-linecap="round"
+                stroke-dasharray="251.2" stroke-dashoffset="0"
+                transform="rotate(-90 50 50)"/>
+      </svg>
+      <div id="ammo-center">
+        <span id="ammo-current">30</span>
+        <span id="ammo-sep">/</span>
+        <span id="ammo-max">30</span>
+      </div>
+    </div>
 
-    <!-- Combo Multiplier -->
+    <!-- BOTTOM-LEFT: Gun icon + label -->
+    <div id="gun-panel">
+      <div id="gun-icon-wrap">
+        <!-- Minimal gun SVG -->
+        <svg viewBox="0 0 80 30" width="70" height="26" fill="none">
+          <rect x="2" y="10" width="52" height="12" rx="3" fill="#e0e0e0" stroke="#333" stroke-width="1.5"/>
+          <rect x="46" y="7"  width="14" height="6"  rx="2" fill="#bbb" stroke="#333" stroke-width="1.2"/>
+          <rect x="20" y="19" width="12" height="9"  rx="2" fill="#ccc" stroke="#333" stroke-width="1.2"/>
+          <rect x="54" y="11" width="22" height="8"  rx="2" fill="#d0d0d0" stroke="#333" stroke-width="1.2"/>
+        </svg>
+      </div>
+      <div id="gun-label">PRIMARY</div>
+    </div>
+
+    <!-- COMBO -->
     <div id="combo-display"></div>
 
-    <!-- Crosshair -->
+    <!-- CROSSHAIR -->
     <div id="crosshair">
       <div class="ch-top"></div>
       <div class="ch-bottom"></div>
@@ -59,60 +108,100 @@
       <div class="ch-dot"></div>
     </div>
 
-    <!-- Hit Marker -->
+    <!-- HIT MARKER -->
     <div id="hit-marker">
-      <div class="hm-tl"></div>
-      <div class="hm-tr"></div>
-      <div class="hm-bl"></div>
-      <div class="hm-br"></div>
+      <div class="hm-tl"></div><div class="hm-tr"></div>
+      <div class="hm-bl"></div><div class="hm-br"></div>
     </div>
 
-    <!-- Hit Vignette -->
+    <!-- HIT VIGNETTE -->
     <div id="hit-vignette"></div>
 
-    <!-- Loading Screen -->
+    <!-- ══════════════════════════════
+         LOADING SCREEN
+    ══════════════════════════════ -->
     <div id="loading-screen">
-      <div id="loading-logo">
-        <div id="loading-title">STREET SHOOTER</div>
-        <div id="loading-subtitle">FPS TACTICAL</div>
-      </div>
-      <div id="loading-bar-wrap">
-        <div id="loading-bar">
-          <div id="loading-progress"></div>
+      <div id="ls-bg-pattern"></div>
+
+      <div id="ls-card">
+        <div id="ls-logo-wrap">
+          <div id="ls-icon">🎯</div>
+          <div id="ls-title">STREET<span class="ls-accent">SHOOTER</span></div>
+          <div id="ls-sub">TACTICAL FPS</div>
         </div>
-        <div id="loading-text">Initializing...</div>
+
+        <div id="ls-bar-section">
+          <div id="ls-bar-track">
+            <div id="loading-progress">
+              <div id="ls-bar-shine"></div>
+            </div>
+          </div>
+          <div id="loading-text">Initializing...</div>
+        </div>
+
+        <div id="ls-tip">
+          <span class="ls-tip-badge">TIP</span>
+          <span>Aim for the head for bonus damage!</span>
+        </div>
       </div>
     </div>
 
-    <!-- Game Over Screen -->
+    <!-- ══════════════════════════════
+         GAME OVER
+    ══════════════════════════════ -->
     <div id="game-over-screen" style="display:none">
-      <div id="game-over-content">
-        <div id="game-over-title">MISSION FAILED</div>
-        <div id="final-score">Score: 0</div>
-        <div id="final-wave">Wave Reached: 1</div>
-        <button id="restart-btn">PLAY AGAIN</button>
+      <div id="go-card">
+        <div id="go-emoji">💀</div>
+        <div id="game-over-title">BUSTED!</div>
+
+        <div id="go-stats">
+          <div class="go-stat-box">
+            <div class="go-stat-icon">⭐</div>
+            <div class="go-stat-val" id="go-score-val">0</div>
+            <div class="go-stat-label">SCORE</div>
+          </div>
+          <div class="go-stat-divider"></div>
+          <div class="go-stat-box">
+            <div class="go-stat-icon">⚔️</div>
+            <div class="go-stat-val" id="go-wave-val">1</div>
+            <div class="go-stat-label">WAVES</div>
+          </div>
+        </div>
+
+        <!-- Orange 3D button -->
+        <button id="restart-btn">
+          <span class="btn-face">↺ PLAY AGAIN</span>
+        </button>
       </div>
     </div>
 
-    <!-- Wave Clear Banner -->
-    <div id="wave-clear-msg" style="display:none">WAVE CLEAR!</div>
+    <!-- WAVE CLEAR BANNER -->
+    <div id="wave-clear-msg" style="display:none">
+      <span>🎉</span> WAVE CLEAR! <span>🎉</span>
+    </div>
 
-    <!-- Advance Button -->
+    <!-- ADVANCE BUTTON (3D orange) -->
     <div id="advance-btn" style="display:none">
-      <div class="advance-inner">
-        <div class="advance-arrow">▶</div>
-        <div class="advance-label">ADVANCE</div>
-      </div>
+      <button class="big-btn orange-btn">
+        <span class="btn-face">⚔️ NEXT WAVE</span>
+      </button>
     </div>
 
-    <!-- Touch ADS Button -->
+    <!-- ADS / AIM BUTTON -->
     <div id="ads-btn">
-      <span>AIM</span>
+      <svg viewBox="0 0 24 24" width="28" height="28" fill="none">
+        <circle cx="12" cy="12" r="9"  stroke="#fff" stroke-width="2"/>
+        <circle cx="12" cy="12" r="3"  fill="#fff"/>
+        <line x1="12" y1="2"  x2="12" y2="6"  stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+        <line x1="12" y1="18" x2="12" y2="22" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+        <line x1="2"  y1="12" x2="6"  y2="12" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+        <line x1="18" y1="12" x2="22" y2="12" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <span id="ads-label">AIM</span>
     </div>
 
-  </div>
+  </div><!-- /hud -->
 
-  <!-- Game Bootstrap -->
   <script type="module" src="./src/main.js"></script>
 </body>
 </html>
