@@ -1,7 +1,7 @@
 // shoot.js — Player Bullet System: Three.js Raycasting, Hit Detection, FX
 
 import * as THREE from "three";
-import { playerState, consumeAmmo, applyRecoil } from "./player.js";
+import { playerState, consumeAmmo, applyRecoil, WEAPON_SNIPER } from "./player.js";
 import { getFromPool, releaseToPool } from "./pool.js";
 
 const _raycaster = new THREE.Raycaster();
@@ -60,8 +60,9 @@ export function firePlayerBullet(scene, camera, enemies, hud, addScoreFn) {
   const distToHead = Math.abs(hitPoint.y - headY);
   const isHeadshot = distToHead < 0.25;
 
-  const baseDmg = playerState.isADS ? 28 : 22;
-  const dmg = isHeadshot ? baseDmg * 2.5 : baseDmg;
+  const isSniper = playerState.activeWeapon === WEAPON_SNIPER;
+  const baseDmg  = isSniper ? 150 : (playerState.isADS ? 28 : 22);
+  const dmg      = isHeadshot ? (isSniper ? 9999 : baseDmg * 2.5) : baseDmg;
 
   // 7. Apply damage to enemy
   const killed = enemy.takeDamage(Math.round(dmg), isHeadshot);
@@ -113,8 +114,11 @@ const _flashMat = new THREE.MeshBasicMaterial({
 function _spawnMuzzleFlash(scene, camera) {
   const geo = new THREE.SphereGeometry(0.06, 6, 6);
   const flash = new THREE.Mesh(geo, _flashMat.clone());
-  // Place at gun muzzle (in front of camera, offset right-down)
-  const muzzlePos = new THREE.Vector3(0.32, -0.26, -0.65);
+  // Sniper muzzle is further forward; rifle is offset right
+  const isSniper = playerState.activeWeapon === WEAPON_SNIPER;
+  const muzzlePos = isSniper
+    ? new THREE.Vector3(0.0, -0.12, -0.95)
+    : new THREE.Vector3(0.32, -0.26, -0.65);
   flash.position.copy(muzzlePos);
   flash.renderOrder = 2;
   camera.add(flash);

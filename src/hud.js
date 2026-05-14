@@ -73,16 +73,41 @@ export function updateHUD(hud, playerState, waveIndex) {
 }
 
 /* ── Loading ─────────────────────────────────────────────── */
+const TIPS = [
+  'KEEP MOVING AND USE COVER TO STAY ALIVE!',
+  'AIM FOR THE HEAD FOR BONUS DAMAGE!',
+  'RELOAD BEFORE YOU NEED TO — NOT DURING A FIGHT!',
+  'USE COVER TO PEEK AND SHOOT — STAY HIDDEN!',
+  'HIGHER COMBO = BIGGER SCORE BONUS!',
+  'ELIMINATE ALL ENEMIES TO ADVANCE TO THE NEXT WAVE!',
+];
+let _tipInterval = null;
+
 export function showLoadingProgress(hud, progress) {
   hud.loadingProgress.style.width = (progress * 100).toFixed(1) + '%';
-  if (progress >= 1) hud.loadingText.textContent = 'Get Ready!';
+  if (progress >= 1 && hud.loadingText) hud.loadingText.textContent = 'GET READY!';
+}
+
+export function startLoadingTips() {
+  const tipEl = document.getElementById('ls-tip-text');
+  if (!tipEl) return;
+  let idx = 0;
+  tipEl.textContent = TIPS[idx];
+  _tipInterval = setInterval(() => {
+    idx = (idx + 1) % TIPS.length;
+    tipEl.style.opacity = '0';
+    tipEl.style.transition = 'opacity 0.3s ease';
+    setTimeout(() => { tipEl.textContent = TIPS[idx]; tipEl.style.opacity = '1'; }, 320);
+  }, 3000);
 }
 
 export function hideLoadingScreen(hud) {
-  hud.loadingScreen.style.transition = 'opacity 0.5s ease';
+  if (_tipInterval) { clearInterval(_tipInterval); _tipInterval = null; }
+  hud.loadingScreen.style.transition = 'opacity 0.6s ease';
   hud.loadingScreen.style.opacity    = '0';
-  setTimeout(() => { hud.loadingScreen.style.display = 'none'; }, 520);
+  setTimeout(() => { hud.loadingScreen.style.display = 'none'; }, 650);
 }
+
 
 /* ── Game Over ───────────────────────────────────────────── */
 export function showGameOver(hud, score, wave, onRestart) {

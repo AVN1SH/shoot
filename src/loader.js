@@ -143,6 +143,7 @@ export async function preloadAll(onProgress) {
     // Characters & guns
     'assets/enemies/enemy_character.glb',
     'assets/guns/player_rifle.glb',
+    'assets/guns/player_sniper.glb',
     'assets/guns/enemy_rifle.glb',
     'assets/guns/grenade.glb',
     'assets/guns/ammo_pickup.glb',

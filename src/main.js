@@ -15,6 +15,7 @@ import {
   addDamageToPlayer,
   animateCoverMove,
   animateSpawnIn,
+  switchWeapon,
 } from "./player.js";
 import { initInput } from "./input.js";
 import { firePlayerBullet } from "./shoot.js";
@@ -27,6 +28,7 @@ import {
   hideLoadingScreen,
   showGameOver,
   showWaveClearMessage,
+  startLoadingTips,
 } from "./hud.js";
 import { initPoolSystem } from "./pool.js";
 import { SeededRNG } from "./utils.js";
@@ -55,6 +57,7 @@ let streetRNG;
 async function init() {
   /* HUD */
   hud = initHUD();
+  startLoadingTips();
   console.log("[Init] HUD ready");
 
   /* YouTube Playables: Load cloud save data (high score) */
@@ -130,6 +133,22 @@ async function init() {
   /* Input — wire ADS buttons */
   initInput(playerRig, hud, onFire);
   console.log("[Init] Input ready");
+
+  /* Weapon switch button */
+  const switchBtn = document.getElementById("weapon-switch-btn");
+  if (switchBtn) {
+    switchBtn.addEventListener("pointerdown", (e) => {
+      e.stopPropagation();
+      switchWeapon(playerRig, hud);
+    });
+  }
+  /* Keyboard: Tab or number keys to switch */
+  window.addEventListener("keydown", (e) => {
+    if (e.code === "Tab" || e.code === "Digit1" || e.code === "Digit2") {
+      e.preventDefault();
+      switchWeapon(playerRig, hud);
+    }
+  });
 
   showLoadingProgress(hud, 0.9);
   hud.loadingText.textContent = "Spawning enemies…";
@@ -335,9 +354,9 @@ function endGame() {
     const best = Math.max(playerState.score, gameState.highScore || 0);
     gameState.highScore = best;
     const payload = JSON.stringify({ highScore: best });
-    ytgame.game.saveData(payload).catch((e) =>
-      console.warn("[YT] Cloud save on game over failed:", e)
-    );
+    ytgame.game
+      .saveData(payload)
+      .catch((e) => console.warn("[YT] Cloud save on game over failed:", e));
   }
 
   showGameOver(hud, playerState.score, gameState.waveIndex, restartGame);

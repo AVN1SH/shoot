@@ -9,10 +9,13 @@
   <meta name="description" content="FPS Street Shooter — A cover-based first-person shooter built with Three.js.">
   <title>Street Shooter</title>
 
-  <!-- Modern tactical fonts (Using system fonts for YouTube Playables standalone requirement) -->
+  <!-- Luckiest Guy from Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=swap" rel="stylesheet">
   <style>
     :root {
-      --font-display: 'Impact', 'Arial Black', sans-serif;
+      --font-display: 'Luckiest Guy', 'Impact', 'Arial Black', sans-serif;
       --font-ui: 'Helvetica Neue', Arial, sans-serif;
     }
   </style>
@@ -93,7 +96,28 @@
           <rect x="54" y="11" width="22" height="8"  rx="2" fill="#d0d0d0" stroke="#333" stroke-width="1.2"/>
         </svg>
       </div>
-      <div id="gun-label">PRIMARY</div>
+      <div id="gun-label">RIFLE</div>
+    </div>
+
+    <!-- WEAPON SWITCH BUTTON -->
+    <div id="weapon-switch-btn" data-active="0">
+      <div class="wsb-inner">
+        <!-- Rifle icon -->
+        <svg class="wsb-icon wsb-rifle" viewBox="0 0 80 30" width="44" height="18" fill="none">
+          <rect x="2" y="10" width="52" height="10" rx="2" fill="#fff" opacity="0.9"/>
+          <rect x="46" y="7" width="14" height="5" rx="2" fill="#ccc"/>
+          <rect x="54" y="11" width="22" height="7" rx="2" fill="#ddd"/>
+        </svg>
+        <!-- Sniper icon -->
+        <svg class="wsb-icon wsb-sniper" viewBox="0 0 100 22" width="54" height="18" fill="none">
+          <rect x="2" y="8" width="75" height="8" rx="2" fill="#fff" opacity="0.9"/>
+          <rect x="28" y="5" width="22" height="6" rx="3" fill="#88aaff" opacity="0.8"/>
+          <rect x="77" y="9" width="21" height="6" rx="1" fill="#ddd"/>
+        </svg>
+        <span class="wsb-label" id="wsb-label-rifle">RIFLE</span>
+        <span class="wsb-label" id="wsb-label-sniper">SNIPER</span>
+      </div>
+      <div class="wsb-hint">TAB</div>
     </div>
 
     <!-- COMBO -->
@@ -121,29 +145,47 @@
          LOADING SCREEN
     ══════════════════════════════ -->
     <div id="loading-screen">
-      <div id="ls-bg-pattern"></div>
 
-      <div id="ls-card">
-        <div id="ls-logo-wrap">
-          <div id="ls-icon">🎯</div>
-          <div id="ls-title">STREET<span class="ls-accent">SHOOTER</span></div>
-          <div id="ls-sub">TACTICAL FPS</div>
+      <!-- Full-bleed poster background -->
+      <div id="ls-poster"></div>
+
+      <!-- Dark gradient overlay so text/UI pops -->
+      <div id="ls-overlay"></div>
+
+      <!-- ── Logo ── -->
+      <img id="ls-logo" src="assets/images/logo (1).webp" alt="Street Shooter">
+
+      <!-- ── Decorative boards (bottom-left) ── -->
+      <div id="ls-boards">
+        <div class="ls-board">
+          <img src="assets/images/health-board.webp" alt="Health is your life">
         </div>
-
-        <div id="ls-bar-section">
-          <div id="ls-bar-track">
-            <div id="loading-progress">
-              <div id="ls-bar-shine"></div>
-            </div>
-          </div>
-          <div id="loading-text">Initializing...</div>
+        <div class="ls-board">
+          <img src="assets/images/aim-well-board.webp" alt="Aim well, shoot fast">
         </div>
-
-        <div id="ls-tip">
-          <span class="ls-tip-badge">TIP</span>
-          <span>Aim for the head for bonus damage!</span>
+        <div class="ls-board">
+          <img src="assets/images/use-cover-board.webp" alt="Use cover, stay safe">
         </div>
       </div>
+
+      <!-- ── Loading section (bottom-centre) ── -->
+      <div id="ls-bottom">
+        <div id="loading-text">LOADING...</div>
+
+        <!-- Progress bar -->
+        <div id="ls-bar-track">
+          <div id="loading-progress">
+            <div id="ls-bar-shine"></div>
+          </div>
+        </div>
+
+        <!-- Tip row -->
+        <div id="ls-tip">
+          <span class="ls-tip-label">TIP:</span>
+          <span id="ls-tip-text">KEEP MOVING AND USE COVER TO STAY ALIVE!</span>
+        </div>
+      </div>
+
     </div>
 
     <!-- ══════════════════════════════
@@ -198,6 +240,44 @@
         <line x1="18" y1="12" x2="22" y2="12" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
       </svg>
       <span id="ads-label">AIM</span>
+    </div>
+
+    <!-- SNIPER SCOPE OVERLAY (shown via body.sniper-scoped class) -->
+    <div id="sniper-scope">
+      <!--
+        NO mask divs needed.
+        The .scope-lens is a circle (border-radius:50%).
+        Its box-shadow spreads 100vmax outward → perfectly blacks out
+        everything outside the circle with zero corner artifacts.
+      -->
+      <div class="scope-lens">
+        <!-- Reticle SVG -->
+        <svg class="scope-reticle" viewBox="0 0 400 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Full cross-hairs stopping just before centre -->
+          <line x1="200" y1="4"   x2="200" y2="158" stroke="rgba(0,0,0,0.88)" stroke-width="1.6"/>
+          <line x1="200" y1="242" x2="200" y2="396" stroke="rgba(0,0,0,0.88)" stroke-width="1.6"/>
+          <line x1="4"   y1="200" x2="158" y2="200" stroke="rgba(0,0,0,0.88)" stroke-width="1.6"/>
+          <line x1="242" y1="200" x2="396" y2="200" stroke="rgba(0,0,0,0.88)" stroke-width="1.6"/>
+          <!-- Mil-dot horizontal ticks -->
+          <line x1="130" y1="194" x2="130" y2="206" stroke="rgba(0,0,0,0.75)" stroke-width="1.2"/>
+          <line x1="158" y1="196" x2="158" y2="204" stroke="rgba(0,0,0,0.6)"  stroke-width="0.9"/>
+          <line x1="242" y1="196" x2="242" y2="204" stroke="rgba(0,0,0,0.6)"  stroke-width="0.9"/>
+          <line x1="270" y1="194" x2="270" y2="206" stroke="rgba(0,0,0,0.75)" stroke-width="1.2"/>
+          <!-- Mil-dot vertical ticks -->
+          <line x1="194" y1="130" x2="206" y2="130" stroke="rgba(0,0,0,0.75)" stroke-width="1.2"/>
+          <line x1="196" y1="158" x2="204" y2="158" stroke="rgba(0,0,0,0.6)"  stroke-width="0.9"/>
+          <line x1="196" y1="242" x2="204" y2="242" stroke="rgba(0,0,0,0.6)"  stroke-width="0.9"/>
+          <line x1="194" y1="270" x2="206" y2="270" stroke="rgba(0,0,0,0.75)" stroke-width="1.2"/>
+          <!-- Red centre dot -->
+          <circle cx="200" cy="200" r="2.2" fill="rgba(230,40,40,0.95)"/>
+          <!-- Lens reflection arc -->
+          <path d="M 90 110 Q 200 78 310 110" stroke="rgba(255,255,255,0.045)" stroke-width="20" fill="none" stroke-linecap="round"/>
+        </svg>
+        <!-- Dark vignette at lens edges -->
+        <div class="scope-vignette"></div>
+        <!-- Glare highlight top-left -->
+        <div class="scope-glare"></div>
+      </div>
     </div>
 
   </div><!-- /hud -->

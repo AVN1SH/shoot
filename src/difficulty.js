@@ -3,7 +3,7 @@
 export function getWaveConfig(wave) {
   return {
     // ── Enemy count & HP ──────────────────────────────────
-    count:              2 + Math.floor(wave * 1.2),
+    count:              1, // Testing: forced to 1 enemy per wave
     hp:                 Math.round(60 * Math.pow(1.18, wave)),  // softer early HP
 
     // ── Headshot one-shot kills waves 0-2 ─────────────────
@@ -18,8 +18,8 @@ export function getWaveConfig(wave) {
     grenadeTimer:       Math.max(5, 14 - 0.5 * Math.max(0, wave - 6)),
 
     // ── Special roles ─────────────────────────────────────
-    flankers:           wave >= 8 ? 2 : wave >= 4 ? 1 : 0,
-    suppressorEnabled:  wave >= 5,
+    flankers:           0, // Testing: disabled
+    suppressorEnabled:  false, // Testing: disabled
     suppressorInterval: Math.max(3, 5 - 0.2 * Math.max(0, wave - 5)),
     suppressionDamage:  5 + wave,
 

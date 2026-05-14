@@ -4,6 +4,10 @@ import * as THREE from "three";
 import { loadAsset } from "./loader.js";
 import gsap from "gsap";
 
+/* ── Weapon slot IDs ─────────────────────────────────────── */
+export const WEAPON_RIFLE  = 0;
+export const WEAPON_SNIPER = 1;
+
 /* ── Shared player state (singleton) ────────────────────── */
 export const playerState = {
   hp: 99999,
@@ -30,11 +34,14 @@ export const playerState = {
   isAnimatingMove: false,
   coverPeekHeight: 1.65, // camera Y when ADS-peeking over cover
   coverCrouchHeight: 1.25, // camera Y at rest — high enough to see enemies without ADS
+  // Weapon system
+  activeWeapon: WEAPON_RIFLE, // 0=rifle 1=sniper
 };
 
 /* ── Constants ───────────────────────────────────────────── */
-const NORMAL_FOV = 75;
-const ADS_FOV = 45;
+const NORMAL_FOV   = 75;
+const ADS_FOV      = 45;   // rifle iron-sights
+const SCOPE_FOV    = 12;   // sniper scope zoom
 
 /* ── Create the FPS rig ──────────────────────────────────── */
 export async function createPlayerRig(scene) {
@@ -54,49 +61,119 @@ export async function createPlayerRig(scene) {
   camera.position.set(0, 1.7, 0); // eyes at ~1.7m
   body.add(camera);
 
-  // ── Gun viewmodel ──────────────────────────────────────
-  let gun = null;
+  // ── Gun slots ─────────────────────────────────────────
+  const guns   = [null, null]; // [rifle, sniper]
   let gunMixer = null;
 
+  // --- Slot 0: Rifle ---
   try {
     const gltf = await loadAsset("assets/guns/player_rifle.glb");
     if (gltf) {
-      gun = gltf.scene.clone();
-      _applyGunTransform(gun);
-      gun.traverse((m) => {
-        if (m.isMesh) {
-          m.renderOrder = 1;
-          m.material = m.material.clone();
-          // m.material.depthTest = false;
-        }
+      guns[0] = gltf.scene.clone();
+      _applyGunTransform(guns[0], false, WEAPON_RIFLE);
+      guns[0].traverse((m) => {
+        if (m.isMesh) { m.renderOrder = 1; m.material = m.material.clone(); }
       });
-      camera.add(gun);
-      gunMixer = new THREE.AnimationMixer(gun);
+      camera.add(guns[0]);
+      gunMixer = new THREE.AnimationMixer(guns[0]);
     }
   } catch (e) {
-    console.warn("[Player] Gun GLB failed:", e.message);
+    console.warn("[Player] Rifle GLB failed:", e.message);
+  }
+  if (!guns[0]) {
+    guns[0] = _buildProceduralGun();
+    camera.add(guns[0]);
   }
 
-  if (!gun) {
-    gun = _buildProceduralGun();
-    camera.add(gun);
+  // --- Slot 1: Sniper ---
+  try {
+    const gltf = await loadAsset("assets/guns/player_sniper.glb");
+    if (gltf) {
+      guns[1] = gltf.scene.clone();
+      _applyGunTransform(guns[1], false, WEAPON_SNIPER);
+      guns[1].traverse((m) => {
+        if (m.isMesh) { m.renderOrder = 1; m.material = m.material.clone(); }
+      });
+      guns[1].visible = false;  // hidden until switched
+      camera.add(guns[1]);
+    }
+  } catch (e) {
+    console.warn("[Player] Sniper GLB failed:", e.message);
+  }
+  if (!guns[1]) {
+    guns[1] = _buildProceduralSniper();
+    guns[1].visible = false;
+    camera.add(guns[1]);
   }
 
-  return { body, camera, gun, gunMixer };
+  // Expose active gun as .gun (backwards-compat)
+  const rig = { body, camera, guns, gun: guns[0], gunMixer };
+  return rig;
 }
 
 /* ── Natural right-hand FPS gun transform ────────────────── */
-function _applyGunTransform(gun, isADS = false) {
-  if (isADS) {
-    // Centered, iron-sights position
-    gun.position.set(0, -0.1, -0.1);
-    gun.rotation.set(0, Math.PI - 1.57, 0);
+function _applyGunTransform(gun, isADS = false, slot = WEAPON_RIFLE) {
+  if (slot === WEAPON_SNIPER) {
+    if (isADS) {
+      // Centered bolt-action scope position
+      gun.position.set(0, -0.13, -0.15);
+      gun.rotation.set(0, Math.PI - 1.57, 0);
+    } else {
+      // Sniper hip — shifted slightly left (longer barrel hangs more center)
+      gun.position.set(0.12, -0.12, -0.25);
+      gun.rotation.set(0, Math.PI - 1.28, 0);
+    }
   } else {
-    // Hip / lowered: to the right, barrel forward, tilted naturally
-    gun.position.set(0.15, -0.1, -0.2);
-    // x=barrel up, y=flip 180 + very slight cant, z=natural inward roll
-    gun.rotation.set(0, Math.PI - 1.3, 0);
+    if (isADS) {
+      gun.position.set(0, -0.1, -0.1);
+      gun.rotation.set(0, Math.PI - 1.57, 0);
+    } else {
+      gun.position.set(0.15, -0.1, -0.2);
+      gun.rotation.set(0, Math.PI - 1.3, 0);
+    }
   }
+}
+
+/* ── Weapon switch ───────────────────────────────────────── */
+export function switchWeapon(playerRig, hud) {
+  // Cannot switch while scoped or animating
+  if (playerState.isADS) return;
+
+  const prev = playerState.activeWeapon;
+  const next = prev === WEAPON_RIFLE ? WEAPON_SNIPER : WEAPON_RIFLE;
+  playerState.activeWeapon = next;
+
+  // Swap visibility
+  playerRig.guns[prev].visible = false;
+  playerRig.guns[next].visible = true;
+  playerRig.gun = playerRig.guns[next]; // keep .gun pointing at active
+
+  // Ammo: rifle 30, sniper 5
+  if (next === WEAPON_SNIPER) {
+    playerState.ammo    = 5;
+    playerState.maxAmmo = 5;
+  } else {
+    playerState.ammo    = 30;
+    playerState.maxAmmo = 30;
+  }
+
+  // Brief swap animation — gun dips down then comes back
+  const g = playerRig.guns[next];
+  gsap.fromTo(
+    g.position,
+    { y: g.position.y - 0.25 },
+    { y: g.position.y, duration: 0.22, ease: 'power2.out' },
+  );
+
+  // Update HUD gun label
+  const labelEl = document.getElementById('gun-label');
+  if (labelEl) labelEl.textContent = next === WEAPON_SNIPER ? 'SNIPER' : 'RIFLE';
+
+  // Update switch button icon
+  const switchEl = document.getElementById('weapon-switch-btn');
+  if (switchEl) switchEl.dataset.active = next;
+
+  console.log('[Player] Switched to', next === WEAPON_SNIPER ? 'SNIPER' : 'RIFLE');
 }
 
 /* ── Procedural gun fallback ─────────────────────────────── */
@@ -142,9 +219,57 @@ function _buildProceduralGun() {
   return g;
 }
 
+/* ── Procedural sniper fallback ──────────────────────────── */
+function _buildProceduralSniper() {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.9, roughness: 0.2 });
+
+  // Long barrel
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.018, 0.72, 8), mat.clone());
+  barrel.rotation.x = Math.PI / 2;
+  barrel.position.set(0, 0.01, -0.34);
+
+  // Receiver
+  const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.065, 0.32), mat.clone());
+
+  // Stock (wood)
+  const stock = new THREE.Mesh(
+    new THREE.BoxGeometry(0.032, 0.048, 0.22),
+    new THREE.MeshStandardMaterial({ color: 0x4a2e10, roughness: 0.9 }),
+  );
+  stock.position.set(0, -0.01, 0.26);
+
+  // Scope body
+  const scopeBody = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.025, 0.025, 0.18, 10),
+    new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.95, roughness: 0.1 }),
+  );
+  scopeBody.rotation.x = Math.PI / 2;
+  scopeBody.position.set(0, 0.065, -0.02);
+
+  // Scope lens (front)
+  const scopeLens = new THREE.Mesh(
+    new THREE.CircleGeometry(0.022, 12),
+    new THREE.MeshStandardMaterial({ color: 0x88aaff, metalness: 1.0, roughness: 0.0, transparent: true, opacity: 0.6 }),
+  );
+  scopeLens.position.set(0, 0.065, -0.11);
+
+  [barrel, receiver, stock, scopeBody, scopeLens].forEach((m) => {
+    m.traverse((x) => {
+      if (x.isMesh) { x.renderOrder = 1; x.material.depthTest = false; }
+    });
+    g.add(m);
+  });
+
+  g.position.set(0.12, -0.12, -0.25);
+  g.rotation.set(0, Math.PI - 1.28, 0);
+  return g;
+}
+
 /* ── Per-frame update ────────────────────────────────────── */
 export function updatePlayerState(playerRig, dt) {
   const { camera, gunMixer } = playerRig;
+
 
   camera.getWorldPosition(playerState.cameraWorldPos);
   camera.getWorldDirection(playerState.cameraWorldDir);
@@ -348,10 +473,22 @@ export function enterADS(playerRig, hud) {
     );
   }
 
-  _tweenFOV(playerRig.camera, playerRig.camera.fov, ADS_FOV, 0.14);
+  const isSniper = playerState.activeWeapon === WEAPON_SNIPER;
 
-  // Move gun to iron sights
-  if (playerRig.gun) _applyGunTransform(playerRig.gun, true);
+  if (isSniper) {
+    // Sniper: fast zoom to scope FOV, then show scope overlay
+    _tweenFOV(playerRig.camera, playerRig.camera.fov, SCOPE_FOV, 0.10);
+    // Hide gun mesh while scoped (full-screen overlay takes over)
+    if (playerRig.gun) playerRig.gun.visible = false;
+    // Trigger scope overlay
+    document.body.classList.add('sniper-scoped');
+    const crosshairEl = document.getElementById('crosshair');
+    if (crosshairEl) crosshairEl.style.display = 'none';
+  } else {
+    _tweenFOV(playerRig.camera, playerRig.camera.fov, ADS_FOV, 0.14);
+    // Move gun to iron sights
+    if (playerRig.gun) _applyGunTransform(playerRig.gun, true, WEAPON_RIFLE);
+  }
 }
 
 export function exitADS(playerRig, hud) {
@@ -359,6 +496,8 @@ export function exitADS(playerRig, hud) {
   playerState.isADS = false;
   playerState.isExposed = false;
   playerState.adsTimer = 0;
+
+  const wasSniper = playerState.activeWeapon === WEAPON_SNIPER;
 
   // Lower camera back behind cover
   if (playerState.behindCover) {
@@ -372,8 +511,16 @@ export function exitADS(playerRig, hud) {
 
   _tweenFOV(playerRig.camera, playerRig.camera.fov, NORMAL_FOV, 0.14);
 
-  // Return gun to hip
-  if (playerRig.gun) _applyGunTransform(playerRig.gun, false);
+  if (wasSniper) {
+    // Restore sniper gun visibility + hide scope overlay
+    if (playerRig.gun) playerRig.gun.visible = true;
+    document.body.classList.remove('sniper-scoped');
+    const crosshairEl = document.getElementById('crosshair');
+    if (crosshairEl) crosshairEl.style.display = '';
+  } else {
+    // Return rifle to hip
+    if (playerRig.gun) _applyGunTransform(playerRig.gun, false, WEAPON_RIFLE);
+  }
 }
 
 /* ── Tween helpers ───────────────────────────────────────── */
